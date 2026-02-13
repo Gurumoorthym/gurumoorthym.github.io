@@ -1,0 +1,135 @@
+# Vora
+
+**Visual Organization & Retrieval Architecture**
+
+Vora is a cross-platform gallery decluttering application built with Flutter, designed to work seamlessly on both Android and iOS. It helps users reclaim storage space by identifying duplicate or visually similar photos.
+
+## How It Works
+
+Vora scans your photo library to find similar images and groups them together. You can then select the best photo to keep and delete the rest.
+
+- **Privacy-Focused**: All photo analysis happens on your device, with heavy processing tasks like image hashing and analysis performed in isolated threads to keep the UI smooth and responsive.
+- **Best Photo Selection**: Vora uses an advanced algorithm to analyze photos based on sharpness, lighting, and composition to suggest the best photo in a group. Users can also manually override this selection if desired.
+- **Album Selection**: You can choose to scan specific albums or your entire photo library.
+
+## Features
+
+- **Similarity Scanning**: The app generates a perceptual hash (pHash) for every photo in your gallery using Discrete Cosine Transform (DCT) to create a unique "fingerprint." It then compares these fingerprints using Hamming distance to find visually similar photos. This process happens locally on your device.
+- **Best Shot Selection**: Automatically highlights the highest quality photo in a group.
+- **Batch Deletion**: Move unwanted photos to the trash in one click.
+- **Progress Notifications**: Stay informed about the best photo selection process with non-intrusive and persistent progress updates in your notification bar.
+- **Resume Scan**: Automatically saves scan progress and results, allowing you to seamlessly continue a scan even if the app is closed.
+- **Support Development**: Enjoying Vora? You can now support the ongoing development directly through the app.
+
+## Performance & Efficiency
+
+Vora is engineered to handle large photo libraries (10,000+ photos) efficiently without draining your battery or freezing your device.
+
+- **Multi-Threaded Processing**: Heavy computational tasks, like perceptual hashing, run in separate Dart Isolates. This keeps the main UI thread free, ensuring the app remains responsive.
+- **Smart Memory Management**: The scanning engine periodically clears internal caches and processes images in batches to prevent memory overflows, ensuring stability even on devices with limited RAM.
+- **Resumable Workflows**: Progress is saved incrementally. If the app is closed or the background task is interrupted, Vora remembers exactly where it left off.
+- **Targeted Scanning**: Unlike many cleaners that force a full scan, Vora allows you to select specific albums or individual photos, saving time and processing power.
+- **Active State Management**: For extremely large galleries, Vora includes a "Keep Screen On" mode. This prevents the operating system from throttling the CPU when the screen turns off, ensuring the scanning process maintains maximum speed and stability.
+
+## Similarity Scanning Algorithm
+
+Vora identifies duplicate and similar photos using a robust perceptual hashing technique. Unlike traditional file comparison (which only finds exact duplicates), this method "looks" at the image content to find matches even with slight variations.
+
+```mermaid
+graph TD
+    A[Raw Image] -->|Resize & Grayscale| B(Thumbnail 100x100)
+    B -->|Discrete Cosine Transform| C(Perceptual Hash)
+    C -->|Hamming Distance| D{Compare with Groups}
+    D -- Distance ≤ 8 --> E[Group Together]
+    D -- Distance > 8 --> F[Create New Group]
+```
+
+-   **Perceptual Hashing (pHash)**:
+    Every image is converted into a 64-bit "fingerprint" using the Discrete Cosine Transform (DCT). This process reduces the image to its lowest frequencies, ignoring high-frequency noise (like fine details or slight blurs) while preserving the structural composition. This allows Vora to match photos even if they have slight lighting differences or minor movements.
+
+-   **Hamming Distance**:
+    To compare two images, Vora calculates the "Hamming Distance" between their hashes. This represents the number of bit positions in which the two fingerprints differ.
+    -   **Distance 0**: Exact duplicate.
+    -   **Distance 1-8**: Visually similar (burst shots, slight angle changes).
+    -   **Distance > 8**: Different images.
+
+-   **Adaptive Grouping**:
+    As scans progress, Vora maintains a list of unique image groups. New photos are compared against these groups. If a match is found within the similarity threshold (Distance ≤ 8), the photo is added to that group; otherwise, a new group is formed.
+
+## Best Photo Selection Algorithm
+
+Vora's "best photo" selection is powered by an algorithm that runs locally on your device. It analyzes each photo in a group based on several key factors and calculates a "quality score." The photo with the highest score is marked as the best one.
+
+Here’s a breakdown of the process:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Photo Group
+    participant S as Sharpness (50%)
+    participant E as Exposure (30%)
+    participant V as Vibrancy (20%)
+    participant R as Final Score
+
+    P->>S: Analyze Edges (Laplacian Filter)
+    S-->>P: Return Sharpness Score
+    
+    P->>E: Analyze Histogram (Luminance)
+    E-->>P: Return Exposure Score
+    
+    P->>V: Analyze Saturation (HSV)
+    V-->>P: Return Vibrancy Score
+
+    Note over P, R: Calculate Weighted Sum
+    P->>R: (S*0.5) + (E*0.3) + (V*0.2)
+    R-->>P: Highest Score = Best Shot Selection
+```
+
+-   **Sharpness (Clarity)**: The algorithm detects blurriness by applying a mathematical filter (a Laplacian kernel) to a grayscale version of the image. A higher variance in the filtered image indicates more defined edges and a sharper photo. This is the most heavily weighted factor.
+
+-   **Exposure (Lighting)**: It analyzes the photo’s histogram to check for areas that are too dark (underexposed) or too bright (overexposed). A well-exposed photo with balanced lighting will score higher.
+
+-   **Color Vibrancy (Saturation)**: This metric measures the richness and intensity of colors in the photo. A higher average saturation contributes to a better score, indicating a more vivid image.
+
+The final score is a weighted combination of these three factors, ensuring a balanced and reliable selection of the best photo.
+
+## Tech Stack
+
+- **Framework**: Flutter
+- **Gallery Access**: `photo_manager`
+- **State Management**: `provider`
+- **Background Processing**: `workmanager` for background tasks on both Android and iOS.
+- **Notifications**: `flutter_local_notifications` for progress updates on both Android and iOS.
+- **In-App Purchases**: `in_app_purchase` for user donations.
+- **Power Management**: `wakelock_plus` to maintain active processing states during intensive tasks.
+
+## Getting Started
+
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Gurumoorthym/vora.git
+    cd vora
+    ```
+
+2.  **Install dependencies**:
+    ```bash
+    flutter pub get
+    ```
+
+3.  **Run the app** (on Android or iOS):
+    ```bash
+    flutter run
+    ```
+
+## Permissions
+
+Vora requires specific permissions to function effectively while respecting your privacy.
+
+-   **Photo Library Access**:
+    -   **iOS**: Requesting "Limited" or "Full" access allows Vora to read your photos for analysis and delete the ones you select.
+    -   **Android**: Requires `READ_MEDIA_IMAGES` (Android 13+) or `READ_EXTERNAL_STORAGE` (older versions) to access your gallery.
+-   **Notifications**: Required to display persistent progress bars during long scans. This is crucial for keeping the background service alive and informing you of the current status without needing to keep the app open.
+
+---
+
+*Built with 💙 using Flutter.*
