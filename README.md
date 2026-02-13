@@ -1,6 +1,6 @@
 # Privacy Policy for Vora
 
-**Last updated: January 23, 2026**
+**Last updated: February 13, 2026**
 
 This Privacy Policy describes how Vora ("we", "our", or "the App") handles your information when you use our mobile application.
 
